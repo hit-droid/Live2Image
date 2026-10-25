@@ -14,3 +14,6 @@ sdk/
 app/libs/*.aar
 app/libs/*.jar
 app/src/main/assets/Haru/
+
+# 本地编译验证用的 Cubism API 桩（不进库；接真实 SDK 后删除）
+app/src/stub/
