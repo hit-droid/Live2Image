@@ -1,0 +1,55 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.live2image.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.live2image.app"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    sourceSets {
+        main {
+            // Cubism Framework / Core 的 .so 放入 app/src/main/jniLibs/<abi>/ 即可自动打包
+            jniLibs.srcDirs = ['src/main/jniLibs']
+            assets.srcDirs = ['src/main/assets']
+            // 若 SDK 以「Java 绑定源码」形式提供（非 aar），取消下一行并指向其目录：
+            // java.srcDirs += ['../sdk/Framework/java']
+        }
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.24"
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+
+    // Cubism SDK for Native 的 Framework（aar 内含 Java 绑定 + .so）放入 app/libs 后自动引入：
+    implementation fileTree(dir: 'libs', include: ['*.aar', '*.jar'])
+}
