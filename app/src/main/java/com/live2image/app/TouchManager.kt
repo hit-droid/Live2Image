@@ -30,8 +30,10 @@ class TouchManager {
 
     fun touchesBegan(event: MotionEvent): Boolean {
         if (event.pointerCount == 1) {
-            startX = lastX = event.getX(0)
-            startY = lastY = event.getY(0)
+            lastX = event.getX(0)
+            startX = lastX
+            lastY = event.getY(0)
+            startY = lastY
             listener?.onTouchesBegan()
         } else if (event.pointerCount >= 2) {
             lastTouchDistance = distance(event.getX(0), event.getY(0), event.getX(1), event.getY(1))
