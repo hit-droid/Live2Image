@@ -23,8 +23,8 @@ class LAppModel : CubismUserModel() {
     /** 从 assets 的指定目录加载 model3.json。 */
     fun loadAssetsFromFileSystem(dirPath: String, jsonName: String) {
         modelDir = dirPath
-        val manager = LAppDelegate.getInstance().activity?.assets ?: return
-        val json = LAppPal.loadFileFromAssets(manager, "$dirPath/$jsonName")
+        val activity = LAppDelegate.getInstance().activity ?: return
+        val json = LAppPal.loadFileFromAssets(activity, "$dirPath/$jsonName")
         // 官方 API（示例）：loadAssets(dirPath, jsonName, buffer) —— 内部解析并创建 CubismMoc/Model
         loadAssets(dirPath, jsonName, json)
     }
