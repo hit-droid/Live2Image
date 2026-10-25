@@ -1,0 +1,16 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+/app/build
+
+# Live2D Cubism SDK（体积大且有许可，不入库；按 README 放置到 sdk/ 与 app/libs/）
+sdk/
+app/libs/*.aar
+app/libs/*.jar
+app/src/main/assets/Haru/
