@@ -1,0 +1,19 @@
+pluginManagement {
+    repositories {
+        // 国内网络可改用阿里云镜像加速：
+        // maven { url 'https://maven.aliyun.com/repository/public' }
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "Live2Image"
+include ":app"
