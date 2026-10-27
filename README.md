@@ -1,95 +1,91 @@
 # Live2 Image
 
-> 安卓版 Live2D 桌面应用 —— 把 `nizimaLive`（Windows 桌面 VTuber 软件）的**核心体验移植/复刻到 Android**。
+> 安卓版 Live2D 桌面应用 —— 把 `nizimaLive`（Windows 桌面 VTuber 软件）的**核心体验移植/复刻到 Android**，基于 **Live2D Cubism SDK for Native 5 r.5** 实现**真实 Live2D 渲染**（非占位桩）。
 
-## 这个项目是什么
+## 当前状态（已在沙箱完整编译验证）
 
-- **目标**：在 Android 上加载 Live2D（Cubism）模型并实时渲染，支持待机动画、眨眼、触摸拖拽/缩放、点击触发动作，并预留面部/音频驱动扩展点——即 nizimaLive 这类 Live2D 驱动软件的安卓版。
-- **技术栈**：原生 Android（Kotlin）+ `GLSurfaceView`（OpenGL ES 2.0）+ 官方 **Live2D Cubism SDK for Native**。
-- **代码架构**：命名与职责对齐 Cubism 官方 Android Sample（`LAppDelegate / LAppLive2DManager / LAppModel / LAppView / LAppTextureManager / TouchManager`），便于对照官方示例调试。
+| 验证项 | 结果 |
+|--------|------|
+| 官方 Cubism Android Sample 原位编译 | ✅ BUILD SUCCESSFUL（工具链基准） |
+| 本工程 `assembleDebug` | ✅ BUILD SUCCESSFUL |
+| 产物 | `app-debug.apk`（**8.6MB**，`com.live2image.app`，minSdk 24 / target 36） |
+| Native 库 | `libLive2Image.so` × `arm64-v8a` / `x86` / `x86_64`（各 ~1.2MB，静态链入 Cubism Core + Framework） |
+| JNI 桥 | 10 个 `Java_com_live2image_app_JniBridgeJava_*` 导出符号全部就位 |
+| 模型资产 | `assets/Haru/`（`Haru.moc3` + `model3.json` + 物理 + 纹理）+ 全部 ES2 shader |
 
 > **关于"移植"的说明（重要）**
 > 上游仓库 `hit-droid/zaiwujian` 里只有 `nizimaLive 2.7.1` 的发布说明，其 Release 附件是 nizima 的**闭源商业 Windows 桌面软件**安装包（约 220MB，内含 `.exe/.dll/资源`），**没有可移植到安卓的源码**；其内置 Live2D 模型亦为 nizima 版权、不宜二次分发。
 > 因此本项目采用**基于官方 Cubism SDK 的重新实现**，在功能与体验上对齐 nizimaLive，而非对其二进制做代码级移植。
 
+## 架构
+
+采用 Cubism 官方 Android Sample（`proj.android.cmake/Full`）的同款架构——**薄 Java + 重 C++**，真实渲染逻辑全部在 Native 层：
+
+```
+app/src/main/
+├── java/com/live2image/app/     # Java 层仅 3 个文件
+│   ├── MainActivity.java        #   生命周期 + GLSurfaceView + 触摸事件
+│   ├── GLRenderer.java          #   GLSurfaceView.Renderer → JNI
+│   └── JniBridgeJava.java       #   native 方法声明 + AssetManager 桥
+├── cpp/                         # C++ 层（真实 Live2D 实现）
+│   ├── JniBridgeC.cpp           #   JNI 实现 → LAppDelegate
+│   ├── LAppDelegate             #   Framework StartUp/Dispose、GL 环境、视图
+│   ├── LAppLive2DManager        #   场景/模型管理、视图矩阵
+│   ├── LAppModel                #   模型加载/更新/绘制/命中判定
+│   ├── LAppView / LAppSprite    #   背景精灵、UI 齿轮/电源按钮
+│   ├── LAppTextureManager       #   纹理加载与缓存
+│   └── LAppDefine               #   常量（视图逻辑坐标、动作组、命中区名…）
+└── assets/
+    ├── Haru/                    # 官方示例模型（moc3 + cdi3 + physics3 + 纹理）
+    └── *.vert / *.frag          # Cubism Framework ES2 shader
+
+cubism/                          # Cubism SDK for Native 5 r.5（源码 + 静态库）
+├── Core/include                 # Core API 头文件
+├── Core/lib/android/<abi>/      # libLive2DCubismCore.a（arm64-v8a/x86/x86_64）
+├── Framework/                   # Cubism Framework C++ 源码（CMake 引入编译）
+└── Samples/Common + thirdParty/stb
+```
+
+渲染管线：`GLSurfaceView`(ES 2.0) → `JniBridgeC` → `LAppDelegate::run` → `LAppLive2DManager` → `LAppModel::update/draw` → `CubismRenderer_OpenGLES2` → `libLive2DCubismCore.a`。
+
 ## 功能特性
 
 | 能力 | 状态 | 说明 |
 |------|------|------|
-| 加载 `.moc3` / `.model3.json` 模型 | ✅ | 从 `assets` 读取，走 Cubism Framework |
-| OpenGL ES 2.0 实时渲染 | ✅ | `GLSurfaceView` + 预乘 alpha 混合 |
-| 待机动作 / 眨眼 / 呼吸 | ✅ | 由 Cubism Framework 物理与动作系统驱动 |
-| 触摸拖拽移动 | ✅ | 单指拖拽平移视图矩阵 |
-| 双指缩放 | ✅ | 捏合缩放（0.5x ~ 3.0x） |
-| 点击触发动作 | ✅ | 点击播放 `TapBody` 动作组 |
-| 模型纹理管理 | ✅ | PNG 预乘 alpha + mipmap + 缓存 |
-| 摄像头面部驱动 | 🚧 预留 | 见下方「路线图」，接口已留出 |
-| 音频/麦克风驱动 | 🚧 预留 | 见「路线图」 |
+| 加载 `.moc3` / `.model3.json` 模型 | ✅ | Cubism Framework 从 assets 读取 |
+| OpenGL ES 2.0 实时渲染 | ✅ | 预乘 alpha 混合，3 ABI |
+| 待机动作 / 眨眼 / 呼吸 | ✅ | 模型自带物理（`.physics3.json`）+ `Idle` 动作组 |
+| 单指拖拽移动 | ✅ | 平移视图矩阵（`LAppView` 逻辑坐标 ±2.0） |
+| 双指捏合缩放 | ✅ | 0.8x ~ 2.0x（`ViewMinScale`~`ViewMaxScale`） |
+| 点击触发动作 | ✅ | 命中判定 `Head`/`Body`，播放 `TapBody` |
+| 背景精灵 + 齿轮/电源按钮 | ✅ | `LAppSprite`（点击齿轮切换模型、电源退到后台） |
+| 摄像头面部驱动 | 🚧 | 见「路线图」 |
+| 音频/麦克风驱动 | 🚧 | 见「路线图」 |
 
-## 目录结构
+## 编译运行
 
-```
-Live2Image/
-├── app/
-│   └── src/main/
-│       ├── AndroidManifest.xml
-│       ├── java/com/live2image/app/
-│       │   ├── MainActivity.kt          # 入口，桥接 Activity 生命周期
-│       │   ├── LAppDelegate.kt          # 单例：Framework 初始化/释放、持有 Activity/View
-│       │   ├── LAppLive2DManager.kt     # 单例：模型加载/更新/绘制/视图矩阵
-│       │   ├── LAppModel.kt             # 单模型封装（继承 CubismUserModel）
-│       │   ├── LAppView.kt              # GLSurfaceView + Renderer + 触摸分发
-│       │   ├── LAppTextureManager.kt    # 纹理加载/缓存
-│       │   ├── LAppPal.kt               # 日志/资源/着色器工具
-│       │   ├── LAppDefine.kt            # 常量（模型目录、动作组、视图参数）
-│       │   └── TouchManager.kt          # 单指拖拽 + 双指缩放
-│       └── res/                          # 布局、主题、图标
-├── build.gradle / settings.gradle / gradle.properties
-└── README.md
+**环境要求**：JDK 17、Android SDK Platform 36、Build-Tools 36.0.0、NDK `26.3.11579264`、CMake `3.22.1`。
+
+命令行：
+
+```bash
+# SDK 已内置在 cubism/，无需额外下载；写 local.properties 后直接构建
+echo "sdk.dir=/path/to/android-sdk" > local.properties
+./gradlew assembleDebug          # 产出 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-## 编译运行（Android Studio）
-
-1. **环境**：Android Studio（Hedgehog 或更新）、Android SDK 34、NDK 26（部分 Cubism 版本需要）、CMake 3.22+。
-2. **打开工程**：用 Android Studio `Open` 选择本仓库根目录，等待 Gradle Sync。
-3. **接入 Cubism SDK 与模型**：见下一节（**必需**，否则编译会因缺少 `com.live2d.sdk.cubism.*` 类而失败）。
-4. **运行**：连接真机（OpenGL ES 2.0）或模拟器，Run `app`。
-
-## 接入 Cubism SDK 与模型（必需）
-
-Cubism SDK 需从 Live2D 官网下载（需注册登录，遵循 Live2D 许可，无法随仓库分发）：
-
-1. 前往 Live2D 官网 → 开发者 → 下载 **「Cubism SDK for Native」**。
-2. 解压后按下面两种方式之一接入本工程：
-
-   **方式 A —— 用官方 Android Sample 作为蓝本（推荐，最省心）**
-   - SDK 解压后自带 `Samples/Android` 工程，它已正确配置好 Framework 的 `.so`/`aar`/CMake。
-   - 用该 Sample 工程为基础，把本仓库 `app/src/main/java/com/live2image/app/` 下的 `LApp*`、`TouchManager` 等源码合并进去即可（包名 `com.live2image.app`，可自行调整）。
-
-   **方式 B —— 手动集成到本工程**
-   - **Core 运行时库**：把 `Core/lib/android/<abi>/libLive2DCubismCore.so` 复制到 `app/src/main/jniLibs/<abi>/`。
-   - **Framework**：若 SDK 提供 `CubismFramework.aar`（内含 Java 绑定 + `.so`），放入 `app/libs/`（`build.gradle` 已 `fileTree` 自动引入）；若为源码形式，把其 Java 绑定目录加入 `app/build.gradle` 的 `sourceSets.main.java.srcDirs`（已预留注释行）。
-   - **示例模型**：SDK 自带 `Samples/Resources/Haru`（含 `Haru.model3.json`、`.moc3`、纹理 PNG），整目录复制到 `app/src/main/assets/Haru/`。
-     > 模型目录/文件名由 `LAppDefine.MODEL_DIR` / `MODEL_JSON` 指定，默认即 `Haru` / `Haru.model3.json`；换成自己的模型改这两处即可。
-
-3. Gradle Sync → Build → Run。
-
-## 关于 API 校准
-
-本工程对 Cubism Framework 的调用**命名对齐官方 Android Sample**（如 `CubismFramework.StartUp()/Dispose()`、`CubismUserModel.loadAssets(...)`、`draw(matrix)`、`startMotion(...)`、`setExpression(...)`、`CubismMatrix44` 等）。
-
-不同 SDK 版本的方法签名/命名可能略有差异（例如矩阵方法可能是 `ScaleRelative/TranslateRelative`）。若编译报错，请**以你下载的 SDK 内对应 Sample 为准**做同名替换——所有接入点都集中在 `LAppDelegate.kt`、`LAppModel.kt`、`LAppLive2DManager.kt` 三个文件，改动量很小。
+Android Studio：直接 Open 本仓库根目录，Gradle Sync 后 Run（真机或模拟器需支持 OpenGL ES 2.0）。
 
 ## 路线图
 
+- [ ] 多模型切换（assets 内置更多官方示例模型或允许用户导入 `.moc3`）
 - [ ] 摄像头面部驱动：CameraX + ML Kit Face Mesh → 映射嘴型/视线/头部姿态到模型参数
 - [ ] 音频/麦克风驱动：音量/基频 → 张嘴（LipSync）
-- [ ] 多模型切换与列表
-- [ ] 渲染到纹理 + 截图导出（`LAppDefine.USE_RENDER_TARGET` 已预留开关）
-- [ ] 透明背景/悬浮窗（桌面宠物形态）
+- [ ] 透明背景/悬浮窗（桌面宠物形态，`LAppView` 背景可关）
+- [ ] 渲染到纹理 + 截图导出（`app/CMakeLists.txt` 内 `USE_RENDER_TARGET` 开关已预留）
 
 ## 版权与许可
 
-- 本仓库自有代码采用 [MIT License](./LICENSE)。
-- **Cubism SDK**：其使用受 [Live2D 许可](https://www.live2d.com/zh-CHS/download/sdk/#license) 约束，请自行遵守（部分场景商业使用需授权）。
-- **模型资源**：示例模型请使用官方自带（如 Haru）或你**拥有使用权**的模型；**请勿**将 nizimaLive 等第三方专有模型打包进本仓库。
+- 本仓库**自有代码**（`app/src/main/java/` 下 3 个 Java 文件及 Gradle 配置的改动部分）采用 [MIT License](./LICENSE)。
+- `cubism/`（Cubism SDK for Native）、`app/src/main/cpp/`、`app/src/main/assets/` 下的 **Live2D 官方代码与资源**，其版权归 Live2D Inc.，使用受 [Live2D Open Software License](https://www.live2d.com/eula/live2d-open-software-license-agreement_en.html) 约束，详见 [cubism/NOTICE.md](./cubism/NOTICE.md)；商业场景请自行确认授权要求。
+- 示例模型 `Haru` 为 Cubism SDK 自带示例资产，仅用于演示；**请勿**将 nizimaLive 等第三方专有模型打包进本仓库。

@@ -1,12 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- MainActivity 直接以代码创建 GLSurfaceView 并 setContentView，此布局仅作占位 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/black">
-
-    <com.live2image.app.LAppView
-        android:id="@+id/lapp_view"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+    android:layout_height="match_parent">
 
 </FrameLayout>
