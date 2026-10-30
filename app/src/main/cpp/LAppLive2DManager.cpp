@@ -313,3 +313,27 @@ void LAppLive2DManager::SetViewMatrix(CubismMatrix44* m)
     }
 }
 
+void LAppLive2DManager::SetFaceParameters(csmFloat32 angleX, csmFloat32 angleY, csmFloat32 angleZ,
+    csmFloat32 eyeBallX, csmFloat32 eyeBallY, csmFloat32 mouthOpenY,
+    csmFloat32 blinkL, csmFloat32 blinkR)
+{
+    for (csmUint32 i = 0; i < _models.GetSize(); i++)
+    {
+        if (_models[i] != NULL)
+        {
+            _models[i]->SetFaceParameters(angleX, angleY, angleZ, eyeBallX, eyeBallY, mouthOpenY, blinkL, blinkR);
+        }
+    }
+}
+
+void LAppLive2DManager::SetFaceEnabled(csmBool enabled)
+{
+    for (csmUint32 i = 0; i < _models.GetSize(); i++)
+    {
+        if (_models[i] != NULL)
+        {
+            _models[i]->SetFaceEnabled(enabled);
+        }
+    }
+}
+

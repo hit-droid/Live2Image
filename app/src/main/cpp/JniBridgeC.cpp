@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <jni.h>
 #include "LAppDelegate.hpp"
+#include "LAppLive2DManager.hpp"
 #include "LAppPal.hpp"
 
 using namespace Csm;
@@ -37,7 +38,7 @@ jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
         return JNI_ERR;
     }
 
-    jclass clazz = env->FindClass("com/live2d/demo/JniBridgeJava");
+    jclass clazz = env->FindClass("com/live2image/app/JniBridgeJava");
     g_JniBridgeJavaClass = reinterpret_cast<jclass>(env->NewGlobalRef(clazz));
     g_GetAssetsMethodId = env->GetStaticMethodID(g_JniBridgeJavaClass, "GetAssetList", "(Ljava/lang/String;)[Ljava/lang/String;");
     g_LoadFileMethodId = env->GetStaticMethodID(g_JniBridgeJavaClass, "LoadFile", "(Ljava/lang/String;)[B");
@@ -158,5 +159,20 @@ extern "C"
     Java_com_live2image_app_JniBridgeJava_nativeOnTouchesMoved(JNIEnv *env, jclass type, jfloat pointX, jfloat pointY)
     {
         LAppDelegate::GetInstance()->OnTouchMoved(pointX, pointY);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_com_live2image_app_JniBridgeJava_nativeSetFaceParameters(JNIEnv *env, jclass type,
+        jfloat angleX, jfloat angleY, jfloat angleZ, jfloat eyeBallX, jfloat eyeBallY,
+        jfloat mouthOpenY, jfloat blinkL, jfloat blinkR)
+    {
+        LAppLive2DManager::GetInstance()->SetFaceParameters(angleX, angleY, angleZ,
+            eyeBallX, eyeBallY, mouthOpenY, blinkL, blinkR);
+    }
+
+    JNIEXPORT void JNICALL
+    Java_com_live2image_app_JniBridgeJava_nativeSetFaceEnabled(JNIEnv *env, jclass type, jboolean enabled)
+    {
+        LAppLive2DManager::GetInstance()->SetFaceEnabled(enabled == JNI_TRUE);
     }
 }

@@ -186,4 +186,33 @@ private:
     Csm::csmBool _motionUpdated; ///< モーション更新フラグ
 
     Csm::Rendering::CubismRenderTarget_OpenGLES2  _renderBuffer;   ///< フレームバッファ以外の描画先
+
+    // ------------------------------------------------------------------
+    // 顔ドリブン（カメラ顔検出 → パラメータ）
+    // ------------------------------------------------------------------
+    Csm::csmBool  _faceEnabled;            ///< 顔ドリブン有効フラグ
+    Csm::csmFloat32 _faceTargetAngleX, _faceTargetAngleY, _faceTargetAngleZ;
+    Csm::csmFloat32 _faceTargetEyeBallX, _faceTargetEyeBallY;
+    Csm::csmFloat32 _faceTargetMouthOpenY;
+    Csm::csmFloat32 _faceTargetBlinkL, _faceTargetBlinkR;
+    Csm::csmFloat32 _faceAngleX, _faceAngleY, _faceAngleZ;
+    Csm::csmFloat32 _faceEyeBallX, _faceEyeBallY;
+    Csm::csmFloat32 _faceMouthOpenY;
+    Csm::csmFloat32 _faceBlinkL, _faceBlinkR;
+    const Csm::CubismId* _idParamMouthOpenY;  ///< パラメータID: ParamMouthOpenY
+    const Csm::CubismId* _idParamEyeLOpen;    ///< パラメータID: ParamEyeLOpen
+    const Csm::CubismId* _idParamEyeROpen;    ///< パラメータID: ParamEyeROpen
+
+public:
+    /**
+     * @brief   顔検出パラメータをセットする
+     */
+    void SetFaceParameters(Csm::csmFloat32 angleX, Csm::csmFloat32 angleY, Csm::csmFloat32 angleZ,
+        Csm::csmFloat32 eyeBallX, Csm::csmFloat32 eyeBallY, Csm::csmFloat32 mouthOpenY,
+        Csm::csmFloat32 blinkL, Csm::csmFloat32 blinkR);
+
+    /**
+     * @brief   顔ドリブンを有効/無効にする
+     */
+    void SetFaceEnabled(Csm::csmBool enabled);
 };

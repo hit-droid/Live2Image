@@ -48,6 +48,19 @@ LAppModel::LAppModel()
     _idParamBodyAngleX = CubismFramework::GetIdManager()->GetId(ParamBodyAngleX);
     _idParamEyeBallX = CubismFramework::GetIdManager()->GetId(ParamEyeBallX);
     _idParamEyeBallY = CubismFramework::GetIdManager()->GetId(ParamEyeBallY);
+    _idParamMouthOpenY = CubismFramework::GetIdManager()->GetId(ParamMouthOpenY);
+    _idParamEyeLOpen = CubismFramework::GetIdManager()->GetId(ParamEyeLOpen);
+    _idParamEyeROpen = CubismFramework::GetIdManager()->GetId(ParamEyeROpen);
+
+    _faceEnabled = false;
+    _faceAngleX = _faceAngleY = _faceAngleZ = 0.0f;
+    _faceEyeBallX = _faceEyeBallY = 0.0f;
+    _faceMouthOpenY = 0.0f;
+    _faceBlinkL = _faceBlinkR = 1.0f;
+    _faceTargetAngleX = _faceTargetAngleY = _faceTargetAngleZ = 0.0f;
+    _faceTargetEyeBallX = _faceTargetEyeBallY = 0.0f;
+    _faceTargetMouthOpenY = 0.0f;
+    _faceTargetBlinkL = _faceTargetBlinkR = 1.0f;
 }
 
 LAppModel::~LAppModel()
@@ -393,8 +406,57 @@ void LAppModel::Update()
 
     _updateScheduler.OnLateUpdate(_model, deltaTimeSeconds);
 
+    // 顔ドリブン：顔検出パラメータを平滑適用（最終フレーム描画前に上書き）
+    if (_faceEnabled)
+    {
+        const csmFloat32 k = 0.2f; // 平滑係数
+        _faceAngleX    += (_faceTargetAngleX    - _faceAngleX)    * k;
+        _faceAngleY    += (_faceTargetAngleY    - _faceAngleY)    * k;
+        _faceAngleZ    += (_faceTargetAngleZ    - _faceAngleZ)    * k;
+        _faceEyeBallX  += (_faceTargetEyeBallX  - _faceEyeBallX)  * k;
+        _faceEyeBallY  += (_faceTargetEyeBallY  - _faceEyeBallY)  * k;
+        _faceMouthOpenY += (_faceTargetMouthOpenY - _faceMouthOpenY) * k;
+        _faceBlinkL    += (_faceTargetBlinkL    - _faceBlinkL)    * k;
+        _faceBlinkR    += (_faceTargetBlinkR    - _faceBlinkR)    * k;
+
+        _model->SetParameterValue(_idParamAngleX,    _faceAngleX);
+        _model->SetParameterValue(_idParamAngleY,    _faceAngleY);
+        _model->SetParameterValue(_idParamAngleZ,    _faceAngleZ);
+        _model->SetParameterValue(_idParamEyeBallX,  _faceEyeBallX);
+        _model->SetParameterValue(_idParamEyeBallY,  _faceEyeBallY);
+        _model->SetParameterValue(_idParamMouthOpenY, _faceMouthOpenY);
+        _model->SetParameterValue(_idParamEyeLOpen,  _faceBlinkL);
+        _model->SetParameterValue(_idParamEyeROpen,  _faceBlinkR);
+    }
+
     _model->Update();
 
+}
+
+void LAppModel::SetFaceParameters(csmFloat32 angleX, csmFloat32 angleY, csmFloat32 angleZ,
+    csmFloat32 eyeBallX, csmFloat32 eyeBallY, csmFloat32 mouthOpenY,
+    csmFloat32 blinkL, csmFloat32 blinkR)
+{
+    _faceTargetAngleX = angleX;
+    _faceTargetAngleY = angleY;
+    _faceTargetAngleZ = angleZ;
+    _faceTargetEyeBallX = eyeBallX;
+    _faceTargetEyeBallY = eyeBallY;
+    _faceTargetMouthOpenY = mouthOpenY;
+    _faceTargetBlinkL = blinkL;
+    _faceTargetBlinkR = blinkR;
+}
+
+void LAppModel::SetFaceEnabled(csmBool enabled)
+{
+    _faceEnabled = enabled;
+    if (!enabled)
+    {
+        _faceAngleX = _faceAngleY = _faceAngleZ = 0.0f;
+        _faceEyeBallX = _faceEyeBallY = 0.0f;
+        _faceMouthOpenY = 0.0f;
+        _faceBlinkL = _faceBlinkR = 1.0f;
+    }
 }
 
 CubismMotionQueueEntryHandle LAppModel::StartMotion(const csmChar* group, csmInt32 no, csmInt32 priority, ACubismMotion::FinishedMotionCallback onFinishedMotionHandler, ACubismMotion::BeganMotionCallback onBeganMotionHandler)

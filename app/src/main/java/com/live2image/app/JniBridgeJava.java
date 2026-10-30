@@ -36,6 +36,12 @@ public class JniBridgeJava {
 
     public static native void nativeOnTouchesMoved(float pointX, float pointY);
 
+    // 顔ドリブン（カメラ顔検出 → パラメータ）
+    public static native void nativeSetFaceParameters(float angleX, float angleY, float angleZ,
+        float eyeBallX, float eyeBallY, float mouthOpenY, float blinkL, float blinkR);
+
+    public static native void nativeSetFaceEnabled(boolean enabled);
+
     // Java -----------------------------------------------------------------
 
     public static void SetContext(Context context) {

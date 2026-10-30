@@ -110,6 +110,23 @@ public:
      */
     void SetViewMatrix(Live2D::Cubism::Framework::CubismMatrix44* m);
 
+    /**
+     * @brief   顔検出で得たパラメータをすべてのモデルに設定する
+     *
+     * @param[in]   angleX/Y/Z   頭部回転（度）
+     * @param[in]   eyeBallX/Y   眼球移動 [-1,1]
+     * @param[in]   mouthOpenY   口の開き [0,1]
+     * @param[in]   blinkL/R     目の開き [0,1]
+     */
+    void SetFaceParameters(Csm::csmFloat32 angleX, Csm::csmFloat32 angleY, Csm::csmFloat32 angleZ,
+        Csm::csmFloat32 eyeBallX, Csm::csmFloat32 eyeBallY, Csm::csmFloat32 mouthOpenY,
+        Csm::csmFloat32 blinkL, Csm::csmFloat32 blinkR);
+
+    /**
+     * @brief   顔ドリブンを有効/無効にする
+     */
+    void SetFaceEnabled(Csm::csmBool enabled);
+
 private:
     /**
     * @brief  コンストラクタ

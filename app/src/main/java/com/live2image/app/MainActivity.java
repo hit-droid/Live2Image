@@ -7,29 +7,54 @@
 
 package com.live2image.app;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.pm.PackageManager;
 import android.opengl.GLSurfaceView;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.MotionEvent;
+import android.view.TextureView;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.widget.Button;
+import android.widget.Toast;
 
-public class MainActivity extends Activity {
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+public class MainActivity extends AppCompatActivity {
+    private static final int REQUEST_CAMERA = 1001;
+
+    private GLSurfaceView glSurfaceView;
+    private GLRenderer glRenderer;
+    private FaceTracker faceTracker;
+    private Button faceToggle;
+
     @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         JniBridgeJava.SetActivityInstance(this);
         JniBridgeJava.SetContext(this);
-        glSurfaceView = new GLSurfaceView(this);
+
+        setContentView(R.layout.activity_main);
+
+        glSurfaceView = findViewById(R.id.gl_surface_view);
         glSurfaceView.setEGLContextClientVersion(2);
         glRenderer = new GLRenderer();
         glSurfaceView.setRenderer(glRenderer);
         glSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
-        setContentView(glSurfaceView);
+
+        TextureView previewView = findViewById(R.id.preview_view);
+        faceTracker = new FaceTracker(this, previewView);
+
+        faceToggle = findViewById(R.id.face_toggle);
+        faceToggle.setOnClickListener(v -> toggleFace());
 
         // GLSurfaceViewでタッチイベントを処理する
         glSurfaceView.setOnTouchListener(new View.OnTouchListener() {
@@ -38,7 +63,6 @@ public class MainActivity extends Activity {
                 final float pointX = event.getX();
                 final float pointY = event.getY();
 
-                // GLSurfaceViewのイベント処理キューにタッチイベントを追加する。
                 glSurfaceView.queueEvent(
                     new Runnable() {
                         @Override
@@ -61,6 +85,45 @@ public class MainActivity extends Activity {
             }
         });
 
+        hideSystemUi();
+    }
+
+    private void toggleFace() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA);
+            return;
+        }
+        startFaceTracking();
+    }
+
+    private void startFaceTracking() {
+        boolean willEnable = !faceTracker.isEnabled();
+        if (willEnable && !faceTracker.isEnabled()) {
+            faceTracker.start(this); // 初回のみライフサイクルをバインド
+        }
+        faceTracker.setEnabled(willEnable);
+        faceToggle.setText(willEnable ? R.string.face_on : R.string.face_off);
+        Toast.makeText(this,
+                willEnable ? R.string.face_start : R.string.face_stop,
+                Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+            @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_CAMERA
+                && grantResults.length > 0
+                && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            startFaceTracking();
+        } else if (requestCode == REQUEST_CAMERA) {
+            Toast.makeText(this, R.string.camera_denied, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void hideSystemUi() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE
@@ -70,12 +133,11 @@ public class MainActivity extends Activity {
                     | View.SYSTEM_UI_FLAG_FULLSCREEN
                     | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
             );
-        }
-        else {
+        } else {
             getWindow().getInsetsController().hide(WindowInsets.Type.navigationBars()
                 | WindowInsets.Type.statusBars());
-
-            getWindow().getInsetsController().setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            getWindow().getInsetsController().setSystemBarsBehavior(
+                WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
         }
     }
 
@@ -109,7 +171,4 @@ public class MainActivity extends Activity {
         super.onDestroy();
         JniBridgeJava.nativeOnDestroy();
     }
-
-    private GLSurfaceView glSurfaceView;
-    private GLRenderer glRenderer;
 }

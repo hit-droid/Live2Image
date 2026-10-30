@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">Live2 Image</string>
+    <string name="face_off">顔ドリブン OFF</string>
+    <string name="face_on">顔ドリブン ON</string>
+    <string name="face_start">顔ドリブン開始</string>
+    <string name="face_stop">顔ドリブン停止</string>
+    <string name="camera_denied">カメラ権限が必要です</string>
 </resources>

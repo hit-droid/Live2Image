@@ -7,10 +7,11 @@
 | 验证项 | 结果 |
 |--------|------|
 | 官方 Cubism Android Sample 原位编译 | ✅ BUILD SUCCESSFUL（工具链基准） |
-| 本工程 `assembleDebug` | ✅ BUILD SUCCESSFUL |
-| 产物 | `app-debug.apk`（**8.6MB**，`com.live2image.app`，minSdk 24 / target 36） |
-| Native 库 | `libLive2Image.so` × `arm64-v8a` / `x86` / `x86_64`（各 ~1.2MB，静态链入 Cubism Core + Framework） |
-| JNI 桥 | 10 个 `Java_com_live2image_app_JniBridgeJava_*` 导出符号全部就位 |
+| 本工程 `assembleDebug`（含面部驱动） | ✅ BUILD SUCCESSFUL |
+| 产物 | `app-debug.apk`（**~43MB**，`com.live2image.app`，minSdk 24 / target 36） |
+| Native 库 | `libLive2Image.so` × 3 ABI（静态链入 Cubism Core + Framework）+ ML Kit 原生库（`face_detector` / `image_processing_util` / `surface_util`） |
+| JNI 桥 | 12 个 `Java_com_live2image_app_JniBridgeJava_*` 导出符号（含 `nativeSetFaceParameters` / `nativeSetFaceEnabled`） |
+| 面部驱动 | ✅ CameraX 取帧 + ML Kit Face Detection 关键点 → 映射 8 维面部参数到 Live2D |
 | 模型资产 | `assets/Haru/`（`Haru.moc3` + `model3.json` + 物理 + 纹理）+ 全部 ES2 shader |
 
 > **关于"移植"的说明（重要）**
@@ -23,15 +24,16 @@
 
 ```
 app/src/main/
-├── java/com/live2image/app/     # Java 层仅 3 个文件
-│   ├── MainActivity.java        #   生命周期 + GLSurfaceView + 触摸事件
+├── java/com/live2image/app/
+│   ├── MainActivity.java        #   生命周期 + GLSurfaceView + 触摸 + 摄像头权限/开关
 │   ├── GLRenderer.java          #   GLSurfaceView.Renderer → JNI
-│   └── JniBridgeJava.java       #   native 方法声明 + AssetManager 桥
+│   ├── JniBridgeJava.java       #   native 方法声明 + AssetManager 桥 + 面部参数入口
+│   └── FaceTracker.java         #   CameraX 取帧 + ML Kit 人脸关键点 → 面部参数(EMA 平滑)
 ├── cpp/                         # C++ 层（真实 Live2D 实现）
-│   ├── JniBridgeC.cpp           #   JNI 实现 → LAppDelegate
+│   ├── JniBridgeC.cpp           #   JNI 实现 → LAppDelegate（含 setFaceParameters）
 │   ├── LAppDelegate             #   Framework StartUp/Dispose、GL 环境、视图
-│   ├── LAppLive2DManager        #   场景/模型管理、视图矩阵
-│   ├── LAppModel                #   模型加载/更新/绘制/命中判定
+│   ├── LAppLive2DManager        #   场景/模型管理、视图矩阵 + 转发面部参数
+│   ├── LAppModel                #   模型加载/更新/绘制/命中判定 + 映射面部参数到 Cubism
 │   ├── LAppView / LAppSprite    #   背景精灵、UI 齿轮/电源按钮
 │   ├── LAppTextureManager       #   纹理加载与缓存
 │   └── LAppDefine               #   常量（视图逻辑坐标、动作组、命中区名…）
@@ -59,7 +61,7 @@ cubism/                          # Cubism SDK for Native 5 r.5（源码 + 静态
 | 双指捏合缩放 | ✅ | 0.8x ~ 2.0x（`ViewMinScale`~`ViewMaxScale`） |
 | 点击触发动作 | ✅ | 命中判定 `Head`/`Body`，播放 `TapBody` |
 | 背景精灵 + 齿轮/电源按钮 | ✅ | `LAppSprite`（点击齿轮切换模型、电源退到后台） |
-| 摄像头面部驱动 | 🚧 | 见「路线图」 |
+| 摄像头面部驱动 | ✅ | 前置摄像头 + ML Kit 关键点 → 头部姿态(偏航/俯仰/翻滚)/眼球 XY/张嘴/眨眼，实时映射模型参数 |
 | 音频/麦克风驱动 | 🚧 | 见「路线图」 |
 
 ## 编译运行
@@ -74,12 +76,25 @@ echo "sdk.dir=/path/to/android-sdk" > local.properties
 ./gradlew assembleDebug          # 产出 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Android Studio：直接 Open 本仓库根目录，Gradle Sync 后 Run（真机或模拟器需支持 OpenGL ES 2.0）。
+Android Studio：直接 Open 本仓库根目录，Gradle Sync 后 Run（**面部驱动需在真机上验证**——模拟器通常没有摄像头，且需授权 `CAMERA` 权限）。
+
+### 面部驱动使用
+
+1. 应用启动后点击右下角按钮（"面部驱动"）开启。
+2. 首次开启会请求摄像头权限，授权后前置摄像头以小窗预览（右下角半透明）。
+3. 面部关键点由 ML Kit 实时检测，经 EMA 平滑后映射到 Live2D 参数：
+   - **头部姿态**：偏航(Yaw)/俯仰(Pitch)/翻滚(Roll) → `ParamAngleX/Y/Z`
+   - **眼球**：鼻尖相对双眼中点偏移 → `ParamEyeBallX/Y`
+   - **张嘴**：上下唇间距 / 眼距 → `ParamMouthOpenY`
+   - **眨眼**：双眼开合度 → `ParamEyeLOpen/R`
+4. 再次点击按钮关闭，模型回到 idle 动作。
+
+> 映射逻辑在 `app/src/main/cpp/LAppModel.cpp`（`SetFaceParameters` / `Update` 内 `ParamAngleX` 等写入），可用 `LAppDefine` 调节灵敏度系数。
 
 ## 路线图
 
+- [x] 摄像头面部驱动（CameraX + ML Kit Face Detection）✅ 已实现
 - [ ] 多模型切换（assets 内置更多官方示例模型或允许用户导入 `.moc3`）
-- [ ] 摄像头面部驱动：CameraX + ML Kit Face Mesh → 映射嘴型/视线/头部姿态到模型参数
 - [ ] 音频/麦克风驱动：音量/基频 → 张嘴（LipSync）
 - [ ] 透明背景/悬浮窗（桌面宠物形态，`LAppView` 背景可关）
 - [ ] 渲染到纹理 + 截图导出（`app/CMakeLists.txt` 内 `USE_RENDER_TARGET` 开关已预留）
